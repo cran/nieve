@@ -1,7 +1,7 @@
 Package: nieve
 Type: Package
 Title: Miscellaneous Utilities for Extreme Value Analysis
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: 
     c(person(given = "Yves",
              family = "Deville",
@@ -24,7 +24,7 @@ BugReports: https://github.com/yvesdeville/nieve/issues/
 RoxygenNote: 7.2.1
 VignetteBuilder: knitr
 NeedsCompilation: yes
-Packaged: 2022-11-30 13:51:57 UTC; yves
+Packaged: 2022-12-06 07:39:07 UTC; yves
 Author: Yves Deville [cre, aut] (<https://orcid.org/0000-0002-1233-488X>)
 Repository: CRAN
-Date/Publication: 2022-12-02 08:20:02 UTC
+Date/Publication: 2022-12-06 13:00:02 UTC
