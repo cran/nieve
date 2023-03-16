@@ -1,0 +1,13 @@
+
+	CHANGES in 'nieve' PACKAGE VERSION 0.1.2
+
+CHANGES
+	o Non-finite values (hence NA) are not allowed in parameters.
+	
+	o The 'rGEV' function no longer returns a named vector.
+	
+BUG FIXES
+	o The probability functions 'p', 'd', 'q' did not work with 'deriv
+	= TRUE' when their first argument contained NA. This is now
+	possible, the corresponding rows of the "gradient" atrribute and
+	the corresponding slices of "hessian" attribute contain only NAs.

@@ -1,3 +1,41 @@
+.reshapeexp1 <- function(x, scale, matrix = FALSE) {
+    
+   n <- length(x)
+    
+    if (n > 1L) {
+        msg <- paste("when 'x' has length n > 1, 'scale' and 'shape'",
+                     " must have length 'n' or 1")
+        if (length(scale) != n) {
+            if (length(scale) != 1L) stop(msg)
+            scale <- rep(scale, n)
+        }
+        nms <- names(x)
+    } else {
+        
+        n <- length(scale)
+        
+        if (n > 1L) {
+            x <- rep(x, n)
+            scale <- rep(scale, length.out = n)
+        }
+        
+    }
+    
+   if (matrix)  {
+       
+       return(cbind("x" = x, "scale" = scale))
+       
+   } else {
+       
+       if (length(x) > 1L) nms <- names(x)
+       else if (length(scale) > 1L) nms <- names(scale)
+       else nms <- ""
+       
+       return(list("n" = n, "x" = x,
+                   "scale" = scale, 
+                   "nms" = nms))
+   }
+}
 
 ## ***********************************************************************
 ##
@@ -19,27 +57,36 @@
 ##' @aliases pexp1 qexp1 rexp1
 ##' 
 ##' @title Density, Distribution Function, Quantile Function and
-##' Random Generation for the One-Parameter Exponential Distribution
+##'     Random Generation for the One-Parameter Exponential
+##'     Distribution
 ##' 
 ##' @param scale Scale parameter. Numeric vector with suitable length,
-##' see \bold{Details}.
+##'     see \bold{Details}. Can not contain non-finite value.
 ##'
 ##' @param log Logical; if \code{TRUE}, densities \code{p} are
-##' returned as \code{log(p)}.
+##'     returned as \code{log(p)}.
 ##' 
 ##' @param deriv Logical. If \code{TRUE}, the gradient of each
-##' computed value w.r.t. the parameter vector is computed, and
-##' returned as a \code{"gradient"} attribute of the result. This is a
-##' numeric array with dimension \code{c(n, 1)} where \code{n} is the
-##' length of the first argument, i.e. \code{x}, \code{p} or \code{q},
-##' depending on the function.
+##'     computed value w.r.t. the parameter vector is computed, and
+##'     returned as a \code{"gradient"} attribute of the result. This
+##'     is a numeric array with dimension \code{c(n, 1)} where
+##'     \code{n} is the length of the first argument, i.e. \code{x},
+##'     \code{p} or \code{q}, depending on the function.
 ##'
 ##' @param hessian Logical. If \code{TRUE}, the Hessian of each
-##' computed value w.r.t. the parameter vector is computed, and
-##' returned as a \code{"hessian"} attribute of the result. This is a
-##' numeric array with dimension \code{c(n, 1, 1)} where \code{n} is
-##' the length of the first argument, i.e. \code{x}, \code{p} or
-##' depending on the function. 
+##'     computed value w.r.t. the parameter vector is computed, and
+##'     returned as a \code{"hessian"} attribute of the result. This
+##'     is a numeric array with dimension \code{c(n, 1, 1)} where
+##'     \code{n} is the length of the first argument, i.e. \code{x},
+##'     \code{p} or depending on the function.
+##' 
+##' @param array Logical. If \code{TRUE}, the simulated values form a
+##'     numeric matrix with \code{n} columns and \code{np} rows where
+##'     \code{np} is the number of exponential parameter values i.e.,
+##'     the length of \code{scale}. This option is useful to cope with
+##'     so-called \emph{non-stationary} models with exponential
+##'     margins. See \bold{Examples}. The default value is
+##'     \code{length(scale) > 1}.
 ##'
 ##' @param x,q Vector of quantiles.
 ##'
@@ -89,9 +136,20 @@
 ##'
 ##' ## With gradient and Hessian.
 ##' pexp1(c(1.1, 1.7), scale = 1, deriv = TRUE, hessian = TRUE)
+##'
+##' ti <- 1:60; names(ti) <- 2000 + ti
+##' sigma <- 1.0 + 0.7 * ti
+##' ## simulate 40 paths
+##' y <- rexp1(n = 40, scale = sigma)
+##' matplot(ti, y, type = "l", col = "gray", main = "varying scale")
+##' lines(ti, apply(y, 1, mean))
+##' 
 dexp1 <- function(x, scale = 1.0, log = FALSE,
                   deriv = FALSE, hessian = FALSE) {
-
+    
+    if (!all(is.finite(scale))) {
+        stop("exp1 parameter must be finite (non NA)")
+    }
     if (hessian && !deriv) {
         stop("'hessian' can be TRUE only when 'gradient' is TRUE")
     }
@@ -102,20 +160,22 @@ dexp1 <- function(x, scale = 1.0, log = FALSE,
                  as.integer(log),
                  as.integer(deriv),
                  as.integer(hessian))
-    
-    n <- length(res)
+
+    names(res) <- names(x)
+  
     if (deriv) {
+        n <- length(res)
         nm1 <- c("scale")
         attr(res, "gradient") <-
             array(attr(res, "gradient"),
                   dim = c(n, 1L),
-                  dimnames = list(rownames(x), nm1))
+                  dimnames = list(names(x), nm1))
         
         if (hessian) {
             attr(res, "hessian") <-
                 array(attr(res, "hessian"),
                       dim = c(n, 1L, 1L),
-                      dimnames = list(rownames(x), nm1, nm1))
+                      dimnames = list(names(x), nm1, nm1))
         }
         
     }
@@ -127,9 +187,12 @@ dexp1 <- function(x, scale = 1.0, log = FALSE,
 ##' @name Exp1
 ##' @rdname Exp1
 ##' @export
-pexp1 <- function (q, scale = 1.0, lower.tail = TRUE,
-                   deriv = FALSE, hessian = FALSE) {
-    
+pexp1 <- function(q, scale = 1.0, lower.tail = TRUE,
+                  deriv = FALSE, hessian = FALSE) {
+
+    if (!all(is.finite(scale))) {
+        stop("exp1 parameter must be finite (non NA)")
+    }
     if (hessian && !deriv) {
         stop("'hessian' can be TRUE only when 'gradient' is TRUE")
     }
@@ -141,18 +204,20 @@ pexp1 <- function (q, scale = 1.0, lower.tail = TRUE,
                  as.integer(deriv),
                  as.integer(hessian))
     
-    n <- length(res)
+    names(res) <- names(q)
+    
     if (deriv) {
+        n <- length(res)
         nm1 <- c("scale")
         attr(res, "gradient") <-
             array(attr(res, "gradient"),
                   dim = c(n, 1L),
-                  dimnames = list(rownames(q), c("scale")))
+                  dimnames = list(names(q), c("scale")))
         if (hessian) {
             attr(res, "hessian") <-
                 array(attr(res, "hessian"),
                       dim = c(n, 1L, 1L),
-                      dimnames = list(rownames(q), nm1, nm1))
+                      dimnames = list(names(q), nm1, nm1))
         }
     }
     return(res)
@@ -162,9 +227,12 @@ pexp1 <- function (q, scale = 1.0, lower.tail = TRUE,
 ##' @name Exp1
 ##' @rdname Exp1
 ##' @export
-qexp1 <- function (p, scale = 1.0, lower.tail = TRUE,
-                   deriv = FALSE, hessian = FALSE) {
-    
+qexp1 <- function(p, scale = 1.0, lower.tail = TRUE,
+                  deriv = FALSE, hessian = FALSE) {
+
+    if (!all(is.finite(scale))) {
+        stop("exp1 parameter must be finite (non NA)")
+    }
     if (hessian && !deriv) {
         stop("'hessian' can be TRUE only when 'gradient' is TRUE")
     }
@@ -179,19 +247,21 @@ qexp1 <- function (p, scale = 1.0, lower.tail = TRUE,
                  as.integer(deriv),
                  as.integer(hessian))
     
-    n <- length(res)
+    names(res) <- names(p)
+    
     if (deriv) {
+        n <- length(res)
         nm1 <- c("scale")
         attr(res, "gradient") <-
             array(attr(res, "gradient"),
                   dim = c(n, 1L),
-                  dimnames = list(rownames(p), nm1))
+                  dimnames = list(names(p), nm1))
         
         if (hessian) {
             attr(res, "hessian") <-
                 array(attr(res, "hessian"),
                       dim = c(n, 1L, 1L),
-                      dimnames = list(rownames(p), nm1, nm1))
+                      dimnames = list(names(p), nm1, nm1))
         }
     }
     return(res)   
@@ -201,13 +271,36 @@ qexp1 <- function (p, scale = 1.0, lower.tail = TRUE,
 ##' @name Exp1
 ##' @rdname Exp1
 ##' @export
-rexp1 <- function (n, scale = 1.0) {
+rexp1 <- function(n, scale = 1.0, array) {
     
-    if (any(is.na(scale)) || any(scale <= 0) || !all(is.finite(scale))) {
-        stop("'scale' must contain non-NA finite and positive numeric values")  
+    if (!all(is.finite(scale))) {
+        stop("exp1 parameter must be finite (non NA)")
     }
 
-    pexp1(runif(n), scale = scale)
+    if (missing(array)) {
+        array <- length(scale) > 1L
+    }
     
+    if (array) {
+        
+        ## If 'array' is TRUE we return a matrix having the simulated values
+        ## as its columns
+        L <- .reshapeexp1(x = 1.0, scale = scale)
+        
+        res <- array(NA, dim = c(L$n, n),
+                     dimnames = list(L$nms, paste("sim", 1:n, sep = "")) )
+        
+        scale <- array(L$scale, dim = c(L$n, n))
+        
+        nn <- L$n * n
+        res <- array(qexp1(runif(nn), scale = scale),
+                     dim = c(L$n, n),
+                     dimnames = list(NULL, paste("sim", 1:n, sep = "")))
+        
+    } else {
+        res <- qexp1(runif(n), scale = scale)
+    }
+
+    res 
 }
 

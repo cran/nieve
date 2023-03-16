@@ -20,6 +20,6 @@ for (xi in xis) {
                "ord 1" =  c("lim" = log(pBar)^2 / 2, "der" = attr(x, "gradient")[1, "shape"]),
                "ord 2" = c("lim" = -log(pBar)^3 / 3, "der" = attr(x, "hessian")[1, "shape", "shape"]))
     cat("xi = ", xi, "\n")
-    print(r)
+    print(r) 
 }
 
