@@ -14,15 +14,18 @@
    Generalized Pareto Distribution (GPD), possibly including the
    gradient and the Hessian for the density, the cumulative
    distribution and the quantile functions. The implementation in C is
-   faster than a pure R implementation. Unlike some other
-   implementations in existing R packages, NAs are returned when the
-   scale is negative, which can be a desirable behaviour when
-   unconstrained optimisation is used to maximise the log-likelihood.
+   faster than a pure R implementation. 
+
+   Unlike some other implementations in existing R packages, NA or
+   NaNs are returned when the parameters are unsuitable (e.g. when the
+   scale is negative), which is a desirable behaviour in numerical
+   optimisation tasks such as the log-likelihood maximisation. This
+   behaviour is inspired from that of the classical distributions
+   provided by the stats package.
  
    We are using here the .Call interface, because we want to return 
    the derivatives as attributes of the result. As a side effect, we 
    can not use the macros like `R_Q_P01_boundaries` 
-
    =========================================================================== */  
 
 
@@ -103,10 +106,20 @@ SEXP Call_dGPD2(SEXP x,             /*  double                          */
 	   ishape = (++ishape == nshape) ? 0 : ishape,
 	   ++i) {
       
-      if (ISNA(rx[ix]) || (rscale[iscale] <= 0.0)) {
-	
-	rval[i] = NA_REAL;
-	
+      if (!R_FINITE(rx[ix]) || !R_FINITE(rscale[iscale]) || !R_FINITE(rshape[ishape]) ||
+	  (rscale[iscale] <= 0.0)) {
+
+	if ((rx[ix] == R_NegInf) || (rx[ix] == R_PosInf)) {
+	  rval[i] = R_NegInf;
+	  if (!INTEGER(logFlag)[0]) {
+	    rval[i] = exp(rval[i]);
+	  }
+	} else if (R_IsNA(rx[ix])) {
+	  rval[i] = R_NaReal;
+	} else {
+	  rval[i] = R_NaN;
+	}
+      
 	rgrad[i] = NA_REAL;
 	rgrad[i + n] = NA_REAL;
 
@@ -279,10 +292,20 @@ SEXP Call_dGPD2(SEXP x,             /*  double                          */
 	   ishape = (++ishape == nshape) ? 0 : ishape,
 	   ++i) {
       
-      if (ISNA(rx[ix]) || (rscale[iscale] <= 0.0)) {
+      if (!R_FINITE(rx[ix]) || !R_FINITE(rscale[iscale]) || !R_FINITE(rshape[ishape]) ||
+	  (rscale[iscale] <= 0.0)) {
 	
-	rval[i] = NA_REAL;
-
+	if ((rx[ix] == R_NegInf) || (rx[ix] == R_PosInf)) {
+	  rval[i] = R_NegInf;
+	  if (!INTEGER(logFlag)[0]) {
+	    rval[i] = exp(rval[i]);
+	  }
+	} else if (R_IsNA(rx[ix])) {
+	  rval[i] = R_NaReal;
+	} else {
+	  rval[i] = R_NaN;
+	}
+	
       } else if (rx[ix] < 0.0) {
 	
 	rval[i] = R_NegInf;
@@ -416,9 +439,27 @@ SEXP Call_pGPD2(SEXP q,               /*  double                          */
 	rhess[i + 3 * n] = 0.0;
       }
       
-      if (ISNA(rq[iq]) || (rscale[iscale] <= 0.0)) {
-
-	rval[i] = NA_REAL;
+      if (!R_FINITE(rq[iq]) || !R_FINITE(rscale[iscale]) || !R_FINITE(rshape[ishape]) ||
+	  (rscale[iscale] <= 0.0)) {
+	
+	if (rq[iq] == R_NegInf) {
+	  if (INTEGER(lowerTailFlag)[0]) {
+	    rval[i] = 0.0;
+	  } else {
+	    rval[i] = 1.0;
+	  }
+	} else if (rq[iq] == R_PosInf) {
+	  if (INTEGER(lowerTailFlag)[0]) {
+	    rval[i] = 1.0;
+	  } else {
+	    rval[i] = 0.0;
+	  }
+	} else if (R_IsNA(rq[iq])) {
+	  rval[i] = R_NaReal;
+	} else {
+	  rval[i] = R_NaN;
+	}
+	
 	rgrad[i] = NA_REAL;
 	rgrad[i + n] = NA_REAL;
 
@@ -599,9 +640,26 @@ SEXP Call_pGPD2(SEXP q,               /*  double                          */
 	   ishape = (++ishape == nshape) ? 0 : ishape,
 	   ++i) {
       
-      if (ISNA(rq[iq]) || (rscale[iscale] <= 0.0)) {
-
-	rval[i] = NA_REAL;
+      if (!R_FINITE(rq[iq]) || !R_FINITE(rscale[iscale]) || !R_FINITE(rshape[ishape]) ||
+	  (rscale[iscale] <= 0.0)) {
+	
+	if (rq[iq] == R_NegInf) {
+	  if (INTEGER(lowerTailFlag)[0]) {
+	    rval[i] = 0.0;
+	  } else {
+	    rval[i] = 1.0;
+	  }
+	} else if (rq[iq] == R_PosInf) {
+	  if (INTEGER(lowerTailFlag)[0]) {
+	    rval[i] = 1.0;
+	  } else {
+	    rval[i] = 0.0;
+	  }
+	} else if (R_IsNA(rq[iq])) {
+	  rval[i] = R_NaReal;
+	} else {
+	  rval[i] = R_NaN;
+	}
 	
       } else if (((rq[iq] == R_NegInf) && lowerTail) ||
 		 ((rq[iq] == R_PosInf) && !lowerTail)) {
@@ -737,8 +795,10 @@ SEXP Call_qGPD2(SEXP p,               /*  double                          */
 	rhess[i + 3 * n] = 0.0;
 	
       }
-
-      if (ISNA(rp[ip]) || (rscale[iscale] <= 0.0)) {
+      
+      if (ISNA(rp[ip]) || !R_FINITE(rscale[iscale]) || !R_FINITE(rshape[ishape]) ||
+	  (rscale[iscale] <= 0.0)) {
+	
 	// Rprintf("NA case\n");
 
 	rval[i] = NA_REAL;
@@ -884,7 +944,8 @@ SEXP Call_qGPD2(SEXP p,               /*  double                          */
 	   ishape = (++ishape == nshape) ? 0 : ishape,
 	   ++i) {
       
-      if (ISNA(rp[ip]) || (rscale[iscale] <= 0.0)) {
+      if (ISNA(rp[ip]) || !R_FINITE(rscale[iscale]) || !R_FINITE(rshape[ishape]) ||
+	  (rscale[iscale] <= 0.0)) {
 	
 	rval[i] = NA_REAL;
 

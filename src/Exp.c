@@ -14,9 +14,14 @@
    Exponential Distribution, possibly including the gradient and the
    Hessian for the density, the cumulative distribution and the
    quantile functions. The implementation in C is faster than a pure R
-   implementation. NAs are returned when the shape is negative, which
-   can be a desirable behaviour for when unconstrained optimization is
-   used to maximize the log-likelihood.
+   implementation. 
+
+   Unlike some other implementations in existing R packages, NA or
+   NaNs are returned when the parameters are unsuitable (e.g. when the
+   scale is negative), which is a desirable behaviour in numerical
+   optimisation tasks such as the log-likelihood maximisation. This
+   behaviour is inspired from that of the classical distributions
+   provided by the stats package.
    =========================================================================== */
 
 /* ==========================================================================
@@ -89,18 +94,28 @@ SEXP Call_dexp1(SEXP x, /*  double                          */
 	   iscale = (++iscale == nscale) ? 0 : iscale,
 	   ++i) {
 
-      if (ISNA(rx[ix]) || (rscale[iscale] <= 0.0)) {
+      if (!R_FINITE(rx[ix]) || !R_FINITE(rscale[iscale]) || (rscale[iscale] <= 0.0)) {
+	
+	if ((rx[ix] == R_NegInf) || (rx[ix] == R_PosInf)) {
+	  rval[i] = R_NegInf;
+	  if (!INTEGER(logFlag)[0]) {
+	    rval[i] = exp(rval[i]);
+	  }
+	} else if (R_IsNA(rx[ix])) {
+	  rval[i] = R_NaReal;
+	} else {
+	  rval[i] = R_NaN;
+	}
 
-	rval[i] = NA_REAL;
 	rgrad[i] = NA_REAL;
-
+	
 	if (hessian) {
 	  // row 'sigma'
 	  rhess[i] = NA_REAL;
 	}
-
+	
       } else {
-
+	
 	z = rx[ix] / rscale[iscale];
 	sigma = rscale[iscale];
 
@@ -159,13 +174,22 @@ SEXP Call_dexp1(SEXP x, /*  double                          */
 	 ix = (++ix == nx) ? 0 : ix,
 	   iscale = (++iscale == nscale) ? 0 : iscale,
 	   ++i) {
-
-      if (ISNA(rx[ix]) || (rscale[iscale] <= 0.0)) {
-
-	rval[i] = NA_REAL;
-
+      
+      if (!R_FINITE(rx[ix]) || !R_FINITE(rscale[iscale]) || (rscale[iscale] <= 0.0)) {
+	
+       	if ((rx[ix] == R_NegInf) || (rx[ix] == R_PosInf)) {
+	  rval[i] = R_NegInf;
+	  if (!INTEGER(logFlag)[0]) {
+	    rval[i] = exp(rval[i]);
+	  }
+	} else if (R_IsNA(rx[ix])) {
+	  rval[i] = R_NaReal;
+	} else {
+	  rval[i] = R_NaN;
+	}
+	
       } else {
-
+	
 	z = rx[ix] / rscale[iscale];
 	// Rprintf("%d, %d, %6.3f, sigma = %6.3f\n", i, ishape, xi, rscale[iscale]);
 
@@ -257,21 +281,38 @@ SEXP Call_pexp1(SEXP q,               /*  double                          */
 	// row 'mu'
 	rhess[i] = 0.0;
       }
+      
+      if (!R_FINITE(rq[iq]) || !R_FINITE(rscale[iscale]) || (rscale[iscale] <= 0.0)) {
 
-      if (ISNA(rq[iq]) || (rscale[iscale] <= 0.0)) {
-
-	rval[i] = NA_REAL;
+	if (rq[iq] == R_NegInf) {
+	  if (INTEGER(lowerTailFlag)[0]) {
+	    rval[i] = 0.0;
+	  } else {
+	    rval[i] = 1.0;
+	  }
+	} else if (rq[iq] == R_PosInf) {
+	  if (INTEGER(lowerTailFlag)[0]) {
+	    rval[i] = 1.0;
+	  } else {
+	    rval[i] = 0.0;
+	  }
+	} else if (R_IsNA(rq[iq])) {
+	  rval[i] = R_NaReal;
+	} else {
+	  rval[i] = R_NaN;
+	}
+	
 	rgrad[i] = NA_REAL;
-
+	
 	if (hessian) {
 	  rhess[i] = NA_REAL;
 	}
-
+	
       } else {
-
+	
 	z = rq[iq] / rscale[iscale];
 	sigma = rscale[iscale];
-
+	
 	if (z < 0.0) {
 	  S = 1.0;
 	  rval[i] = S;
@@ -315,9 +356,27 @@ SEXP Call_pexp1(SEXP q,               /*  double                          */
 	 iq = (++iq == nq) ? 0 : iq,
 	   iscale = (++iscale == nscale) ? 0 : iscale,
 	   ++i) {
-
-      if (ISNA(rq[iq]) || (rscale[iscale] <= 0.0)) {
-	rval[i] = NA_REAL;
+      
+      if (!R_FINITE(rq[iq]) || !R_FINITE(rscale[iscale]) || (rscale[iscale] <= 0.0)) {
+	
+	if (rq[iq] == R_NegInf) {
+	  if (INTEGER(lowerTailFlag)[0]) {
+	    rval[i] = 0.0;
+	  } else {
+	    rval[i] = 1.0;
+	  }
+	} else if (rq[iq] == R_PosInf) {
+	  if (INTEGER(lowerTailFlag)[0]) {
+	    rval[i] = 1.0;
+	  } else {
+	    rval[i] = 0.0;
+	  }
+	} else if (R_IsNA(rq[iq])) {
+	  rval[i] = R_NaReal;
+	} else {
+	  rval[i] = R_NaN;
+	}
+	
       } else {
 	z = rq[iq] / rscale[iscale];
 	if (z < 0.0) {
@@ -399,9 +458,9 @@ SEXP Call_qexp1(SEXP p,               /*  double                          */
 	 ip = (++ip == np) ? 0 : ip,
 	   iscale = (++iscale == nscale) ? 0 : iscale,
 	   ++i) {
-
-      if (ISNA(rp[ip]) || (rscale[iscale] <= 0.0)) {
-
+      
+      if (ISNA(rp[ip]) || !R_FINITE(rscale[iscale]) || (rscale[iscale] <= 0.0)) {
+      
 	rval[i] = NA_REAL;
 	rgrad[i] = NA_REAL;
 	rhess[i] = NA_REAL;
@@ -459,7 +518,7 @@ SEXP Call_qexp1(SEXP p,               /*  double                          */
 	   iscale = (++iscale == nscale) ? 0 : iscale,
 	   ++i) {
 
-      if (ISNA(rp[ip]) || (rscale[iscale] <= 0.0)) {
+      if (ISNA(rp[ip]) || !R_FINITE(rscale[iscale]) || (rscale[iscale] <= 0.0)) {
 
 	rval[i] = NA_REAL;
 
